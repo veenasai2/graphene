@@ -23,9 +23,14 @@ pkgdatadir = join_paths(get_option('datadir'), meson.project_name())
 direct = get_option('direct') == 'enabled'
 sgx = get_option('sgx') == 'enabled'
 
+cc = meson.get_compiler('c')
+objcopy = find_program('objcopy')
+
 # TODO: after deprecating 18.04/bionic, update this to import('python')
 python3mod = import('python3')
 python3 = python3mod.find_python()
+
+subdir('Scripts')
 
 subdir('LibOS')
 subdir('Runtime')
