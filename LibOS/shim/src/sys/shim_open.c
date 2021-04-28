@@ -53,6 +53,7 @@ long shim_do_read(int fd, void* buf, size_t count) {
     }
 
     int ret = do_handle_read(hdl, buf, count);
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/true);
     put_handle(hdl);
     return ret;
 }
@@ -82,6 +83,7 @@ long shim_do_write(int fd, const void* buf, size_t count) {
         return -EBADF;
 
     int ret = do_handle_write(hdl, buf, count);
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/false);
     put_handle(hdl);
     return ret;
 }
@@ -216,6 +218,7 @@ long shim_do_pread64(int fd, char* buf, size_t count, loff_t pos) {
         goto out;
 
     ret = bytes;
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/true);
 out:
     put_handle(hdl);
     return ret;
@@ -266,6 +269,7 @@ long shim_do_pwrite64(int fd, char* buf, size_t count, loff_t pos) {
         goto out;
 
     ret = bytes;
+    maybe_epoll_et_trigger(hdl, ret, /*in=*/false);
 out:
     put_handle(hdl);
     return ret;

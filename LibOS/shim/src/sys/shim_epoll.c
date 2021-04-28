@@ -194,6 +194,9 @@ long shim_do_epoll_ctl(int epfd, int op, int fd, struct __kernel_epoll_event* ev
             epoll_item->handle    = hdl;
             epoll_item->epoll     = epoll_hdl;
 
+            __atomic_store_n(&hdl->needs_et_poll_in, true, __ATOMIC_RELAXED);
+            __atomic_store_n(&hdl->needs_et_poll_out, true, __ATOMIC_RELAXED);
+
             /* register hdl (corresponding to FD) in epoll (corresponding to EPFD):
              * - bind hdl to epoll-item via the `back` list
              * - bind epoll-item to epoll via the `list` list */
@@ -323,6 +326,16 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
                                    ? PAL_WAIT_WRITE
                                    : 0;
             ret_events[pal_cnt] = 0;
+
+            if (epoll_item->events & EPOLLET) {
+                if (!__atomic_load_n(&epoll_item->handle->needs_et_poll_in, __ATOMIC_RELAXED)) {
+                    pal_events[pal_cnt] &= ~PAL_WAIT_READ;
+                }
+                if (!__atomic_load_n(&epoll_item->handle->needs_et_poll_out, __ATOMIC_RELAXED)) {
+                    pal_events[pal_cnt] &= ~PAL_WAIT_WRITE;
+                }
+            }
+
             pal_cnt++;
         }
 
@@ -407,6 +420,12 @@ long shim_do_epoll_wait(int epfd, struct __kernel_epoll_event* events, int maxev
         if (epoll_item->revents & monitored_events) {
             events[nevents].events = epoll_item->revents & monitored_events;
             events[nevents].data   = epoll_item->data;
+            if (events[nevents].events & (EPOLLIN | EPOLLRDNORM)) {
+                __atomic_store_n(&epoll_item->handle->needs_et_poll_in, false, __ATOMIC_RELAXED);
+            }
+            if (events[nevents].events & (EPOLLOUT | EPOLLWRNORM)) {
+                __atomic_store_n(&epoll_item->handle->needs_et_poll_out, false, __ATOMIC_RELAXED);
+            }
             epoll_item->revents &= ~epoll_item->events; /* informed user about revents, may clear */
             nevents++;
         }

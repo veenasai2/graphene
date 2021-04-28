@@ -1145,6 +1145,7 @@ static ssize_t do_sendmsg(int fd, struct iovec* bufs, int nbufs, int flags,
                     log_error("do_sendmsg: failed to deliver a signal\n");
                 }
             }
+            maybe_epoll_et_trigger(hdl, ret, /*in=*/false);
             break;
         }
 
@@ -1402,6 +1403,7 @@ static ssize_t do_recvmsg(int fd, struct iovec* bufs, size_t nbufs, int flags,
                                uri ? SOCK_URI_SIZE : 0);
             if (ret < 0) {
                 ret = ret == -PAL_ERROR_STREAMNOTEXIST ? -ECONNABORTED : pal_to_unix_errno(ret);
+                maybe_epoll_et_trigger(hdl, ret, /*in=*/true);
                 break;
             }
             iov_bytes = read_size;

@@ -315,6 +315,8 @@ struct shim_dentry;
 struct shim_handle {
     enum shim_handle_type type;
     bool is_dir;
+    bool needs_et_poll_in;
+    bool needs_et_poll_out;
 
     REFTYPE ref_count;
 
@@ -361,6 +363,16 @@ struct shim_handle {
 struct shim_handle* get_new_handle(void);
 void get_handle(struct shim_handle* hdl);
 void put_handle(struct shim_handle* hdl);
+
+static inline void maybe_epoll_et_trigger(struct shim_handle* handle, int ret, bool in) {
+    if (ret == -EAGAIN || ret == -EWOULDBLOCK) {
+        if (in) {
+            __atomic_store_n(&handle->needs_et_poll_in, true, __ATOMIC_RELAXED);
+        } else {
+            __atomic_store_n(&handle->needs_et_poll_out, true, __ATOMIC_RELAXED);
+        }
+    }
+}
 
 /* Set handle to non-blocking or blocking mode. */
 int set_handle_nonblocking(struct shim_handle* hdl, bool on);
